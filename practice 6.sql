@@ -1,4 +1,4 @@
--- ex.01 - 10
+-------- ex.01 - 10----------------------------------------------------------------------------------------
 with job_count as(
 SELECT company_id, title, description,
 count(job_id) as no_job
@@ -7,6 +7,19 @@ group by company_id, title, description)
 select count (DISTINCT company_id) as duplicate_companies 
 from job_count
 where no_job = 2 
+------------------------------------------
+SELECT count(a.company_id) AS duplicate_companies -- đếm số job trùng  
+FROM (
+	SELECT company_id
+		,title
+		,description
+		,count(job_id)
+	FROM job_listings -- dùng subquery để lấy ra các job trùng 
+	GROUP BY company_id
+		,title
+		,description
+	HAVING count(job_id) > 1
+	) AS a;
 
 ---ex.02
   with cte as (
@@ -37,7 +50,7 @@ from
 (select policy_holder_id, count(case_id) 
 from callers 
 group by policy_holder_id 
-having count(case_id) >= 3) as call_made
+having count(case_id) >= 3) as call_made'
 
 ---ex.04
 SELECT a.page_id
