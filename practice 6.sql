@@ -9,7 +9,28 @@ from job_count
 where no_job = 2 
 
 ---ex.02
-  
+  with cte as (
+SELECT category, product,
+sum(spend) as total_spend 
+FROM product_spend
+where extract(year from transaction_date) = '2022'
+and category = 'appliance'
+group by product, category
+order by sum(spend) desc
+limit 2), 
+(
+SELECT category, product,
+sum(spend) as total_spend 
+FROM product_spend
+where extract(year from transaction_date) = '2022'
+and category = 'electronics'
+group by product, category
+order by sum(spend) desc
+limit 2)
+select category, product, total_spend from cte 
+UNION ALL
+select category, product, total_spend from cte2
+
 ---ex.03
 Select count(*)
 from 
@@ -43,6 +64,14 @@ on a.user_id=b.user_id
 group by b.month
 
 ---ex.06
+SELECT DATE_FORMAT(trans_date, '%Y-%m') AS month, 
+country, 
+COUNT(id) AS trans_count, 
+SUM(state = 'approved') AS approved_count, 
+SUM(amount) AS trans_total_amount, 
+SUM(IF(state = 'approved', amount, 0)) AS approved_total_amount 
+FROM Transactions 
+GROUP BY month, country;
   
 ---ex.07
 select p.product_id, s.year as first_year, s.quantity, s.price
