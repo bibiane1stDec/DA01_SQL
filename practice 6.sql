@@ -18,7 +18,7 @@ and category = 'appliance'
 group by product, category
 order by sum(spend) desc
 limit 2), 
-(
+cte2 as (
 SELECT category, product,
 sum(spend) as total_spend 
 FROM product_spend
