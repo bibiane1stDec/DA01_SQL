@@ -52,24 +52,94 @@ from  bigquery-public-data.thelook_ecommerce.order_items as a
 left join bigquery-public-data.thelook_ecommerce.products as b
 on a.id = b.id
 ----III.1------------------------
-select 
-month_year,product_category
-tpv,round(100.00*(tpv-pre_tpv)/pre_tpv,2)||"%" as revenue_growth,
-tpo,round(100.00*(tpo-pre_tpo)/pre_tpo,2)||"%" as order_growth,
-TC, tpv-tc as total_profit,
-round(100.00*(tpv-tc)/tc,2)||"%" as profit_to_cost_ratio
-from
-(select 
+with no_null as (select month_year,  product_category,tpv,
+ (tpv - lag(tpv) over (partition by product_category order by month_year))/lag(tpv) over (partition by product_category order by month_year) as revenue_growth
+, tpo,
+(tpo - lag(tpo) over (partition by product_category order by month_year))/lag(tpo) over (partition by product_category order by month_year) as Order_growth,
+tc, tpv-tc as total_profit,
+(tpv-tc)/tc as Profit_to_cost_ratio
+ from
+ (select 
 format_date('%y-%m',a.created_at) as month_year,
 c.category as product_category,
-count(b.order_id) over(partition by format_date('%y-%m',a.created_at)) as tpo,
-count(b.order_id) over (ORDER BY  format_date('%y-%m',a.created_at) ROWS BETWEEN 1 PRECEDING AND 1 PRECEDING) as pre_tpo,
-sum(b.sale_price) over(partition by format_date('%y-%m',a.created_at)) as tpv,
- SUM(b.sale_price) OVER (ORDER BY  format_date('%y-%m',a.created_at)    ROWS     BETWEEN 1 PRECEDING AND 1 PRECEDING) as pre_tpv,
-sum(c.cost) over(partition by format_date('%y-%m',a.created_at)) as TC,
+round(count(b.order_id) over(partition by format_date('%y-%m',a.created_at)),2) as tpo,
+round(sum(b.sale_price) over(partition by format_date('%y-%m',a.created_at)),2) as tpv,
+round(sum(c.cost) over(partition by format_date('%y-%m',a.created_at)),2) as TC
 FROM bigquery-public-data.thelook_ecommerce.orders AS A 
   INNER JOIN bigquery-public-data.thelook_ecommerce.order_items AS B 
     ON A.order_id = B.order_id
   INNER JOIN bigquery-public-data.thelook_ecommerce.products as c 
     on b.id=c.id)
+where product_category is not null
+ and tpv >0 and tpo > 0 and tc > 0),
+
+no_dup as ( select * from
+ (select n.*,
+ row_number() over (partition by product_category orfer by month_year) as dup_flag
+ from no_null as n) as d
+ where dup_flag = 1),
+
+index as ( 
+ select product_category, 
+ total_profit,
+ format_date(('%y-%m', first_date) as cohort_date,
+ month_year , 
+(extract (year from month_year)-extract (year from first_date))*12 
+ +
+(extract (month from month_year)-extract (month from first_date))+1 as index 
+ from 
+ (Select product_category, total_profit, min(month_year) over (partition by product_category) as first_date,
+ month_year 
+ from no_dup ) a),
+
+xxx as (
+ select cohort_date, index,
+ count (distinct product_category) as cnt,
+ sum(total_profit) as profit
+ from index 
+ group by cohort_date, index),
+ 
+pf_cohort as (
+ select cohort_date,
+ sum(case when index = 1 then cnt else 0) end as m1,
+  sum(case when index = 2 then cnt else 0) end as m2,
+  sum(case when index = 3 then cnt else 0) end as m3,
+  sum(case when index = 4 then cnt else 0) end as m4,
+ from xxx
+ group by cohort_date 
+ order by cohort_date)
+
+ select 
+ cohort_date,
+(100-round(100.00* m1/m1,2))||'%' as m1,
+(100-round(100.00* m2/m1,2))|| '%' as m2,
+(100-round(100.00* m3/m1,2)) || '%' as m3,
+(100-round(100.00* m4/m1,2)) || '%' as m4
+ from pf cohort
+
+ 
+ 
 ----III.2------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
