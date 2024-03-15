@@ -75,7 +75,7 @@ where product_category is not null
 
 no_dup as ( select * from
  (select n.*,
- row_number() over (partition by product_category orfer by month_year) as dup_flag
+ row_number() over (partition by product_category order by month_year) as dup_flag
  from no_null as n) as d
  where dup_flag = 1),
 
