@@ -1,3 +1,4 @@
+------1-----------------------
 select 
 concat (extract(year from created_at),'-', extract(month from created_at)) as month_year,
 count(distinct order_id) as noid,
@@ -6,27 +7,38 @@ count(distinct user_id) as nouser
  group by concat (extract(year from created_at),'-', extract(month from created_at))
 
 -----2-------------
-select 
-FORMAT_DATE('%Y-%m',created_at),
- user_id as distinct_users,
- sum(sale_price) over (partition by extract(month from created_at) )/ count(*) over(partition by extract(month from created_at)) as average
+ select distinct user_id as distinct_users,
+ FORMAT_DATE('%Y-%m',created_at) as month_year,  
+ sum(sale_price) over (order by extract(month from created_at) )/ count(*) over(order by extract(month from created_at)) as average
 from bigquery-public-data.thelook_ecommerce.order_items
-where FORMAT_DATE('%Y-%m',created_at) > '2019-01' and FORMAT_DATE('%Y-%m',created_at) <'2022-04'
+where  FORMAT_DATE('%Y-%m',created_at) between '2019-01' and '2022-04' 
 
 ----em dùng lệnh 'avg(sale_price) over (partition by extract(month from created_at) )' thay cho câu sum được ko ạ
 -----3-------------
-CREATE TEMP TABLE cust_infor_temp as (
-SELECT first_name, last_name, gender, age,
-  CASE WHEN age = (SELECT MIN(age) FROM bigquery-public-data.thelook_ecommerce.users WHERE created_at BETWEEN '2019-01-01' AND '2022-04-30') THEN 'youngest'
-       WHEN age = (SELECT MAX(age) FROM bigquery-public-data.thelook_ecommerce.users WHERE created_at BETWEEN '2019-01-01' AND '2022-04-30') THEN 'oldest'
-  END AS tag
-FROM bigquery-public-data.thelook_ecommerce.users
-WHERE created_at BETWEEN '2019-01-01' AND '2022-04-30'
-ORDER BY age ASC)
-SELECT tag, COUNT(*) AS total
-FROM cust_infor_temp
-GROUP BY tag;
+with young_old as (
+SELECT u.first_name, u.last_name, u.gender, u.age,
+ case when u.age = y.youngest then 'youngest' else null end as tag
+ from (
+ select gender, min(age) as youngest from bigquery-public-data.thelook_ecommerce.users group by gender) as y 
+ join bigquery-public-data.thelook_ecommerce.users as u 
+ on  y.youngest= u.age
+ where created_at between '2019-01-01' and '2022-05-01'
+union distinct
+SELECT u.first_name, u.last_name, u.gender, u.age,
+ case when u.age = o.oldest then 'oldest' else null end as tag
+ from (
+ select gender, max(age) as oldest from bigquery-public-data.thelook_ecommerce.users group by gender) as o 
+ join bigquery-public-data.thelook_ecommerce.users as u 
+ on  o.oldest= u.age
+ where created_at between '2019-01-01' and '2022-05-01')
+
+ select  gender, 
+ sum(case when tag = 'youngest' then 1 else 0 end) as youngest,
+ sum(case when tag = 'oldest' then 1 else 0 end) as oldest
+ from young_old
+ group by gender
 ----4--------
+select * from (
 SELECT month_year, product_id, product_name, sales, cost, profit,
   DENSE_RANK() OVER (PARTITION BY month_year ORDER BY profit DESC) AS rank_per_month
 FROM (SELECT 
@@ -42,15 +54,21 @@ FROM (SELECT
   INNER JOIN bigquery-public-data.thelook_ecommerce.products as c 
     on b.id=c.id
      WHERE a.created_at BETWEEN '2019-01-01' AND '2022-04-30' 
-order by month_year asc, profit desc) as monthlysales
-limit 5
+order by month_year asc, profit desc) as monthlysales ) as a
+ where rank_per_month <=5
+
 ----5--------
-select 
-format_date('%y-%m-%d',a.created_at), b.category as product_category,
-(count(b.category) over (partition by extract (date from a.created_at)))*a.sale_price
+with cte as (select 
+format_date('%y-%m-%d',a.created_at) as date, b.category as product_category,
+sum(a.sale_price) as revenue
 from  bigquery-public-data.thelook_ecommerce.order_items as a 
 left join bigquery-public-data.thelook_ecommerce.products as b
 on a.id = b.id
+ group by format_date('%y-%m-%d',a.created_at), b.category
+)
+ select * from cte
+ where date between '2022-01-15' and '2022-04-15'
+ order by product_category, date
 ----III.1------------------------
 with no_null as (select month_year,  product_category,tpv,
  (tpv - lag(tpv) over (partition by product_category order by month_year))/lag(tpv) over (partition by product_category order by month_year) as revenue_growth
