@@ -119,10 +119,10 @@ xxx as (
  
 pf_cohort as (
  select cohort_date,
- sum(case when index = 1 then cnt else 0) end as m1,
-  sum(case when index = 2 then cnt else 0) end as m2,
-  sum(case when index = 3 then cnt else 0) end as m3,
-  sum(case when index = 4 then cnt else 0) end as m4,
+ sum(case when index = 1 then cnt else 0 end) as m1,
+  sum(case when index = 2 then cnt else 0 end) as m2,
+  sum(case when index = 3 then cnt else 0 end )as m3,
+  sum(case when index = 4 then cnt else 0 end) as m4,
  from xxx
  group by cohort_date 
  order by cohort_date)
