@@ -100,7 +100,7 @@ no_dup as ( select * from
 index as ( 
  select product_category, 
  total_profit,
- format_date(('%y-%m', first_date) as cohort_date,
+ format_date('%y-%m', first_date) as cohort_date,
  month_year , 
 (extract (year from month_year)-extract (year from first_date))*12 
  +
@@ -108,7 +108,7 @@ index as (
  from 
  (Select product_category, total_profit, min(month_year) over (partition by product_category) as first_date,
  month_year 
- from no_dup ) a),
+ from no_dup )),
 
 xxx as (
  select cohort_date, index,
