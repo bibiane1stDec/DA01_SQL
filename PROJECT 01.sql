@@ -36,33 +36,19 @@ alter table sales_dataset_rfm_prj
 alter column priceeach type numeric using (trim(priceeach) :: numeric)
 
 alter table sales_dataset_rfm_prj
-alter column orderlinenumber type int using (trim(orderlinenumber) :: int)
+alter column orderlinenumber type int using (trim(orderlinenumber) :: numeric)
 
 alter table sales_dataset_rfm_prj
-alter column sales type decimal using (trim(sales) :: decimal)
+alter column sales type decimal using (trim(sales) :: float)
 
 SET datestyle = 'iso,mdy';  
 ALTER TABLE sales_dataset_rfm_prj
 ALTER COLUMN orderdate TYPE date USING (TRIM(orderdate):: date)
 
 alter table sales_dataset_rfm_prj
-alter column status type varchar(10) using (trim(status) :: varchar(10))
+alter column msrp type numeric using (trim(status) :: numeric)
 
-alter table sales_dataset_rfm_prj
-alter column status type varchar(10) using (trim(status) :: varchar(10))
-
-alter table sales_dataset_rfm_prj
-alter column productline type varchar(20) using (trim(productline) :: varchar(20))
-
-alter table sales_dataset_rfm_prj
-alter column msrp type int using (trim(msrp) :: int)
-
-alter table sales_dataset_rfm_prj
-alter column productcode type varchar(20) using (trim(productcode) :: varchar(20))
-
-alter table sales_dataset_rfm_prj
-alter column phone type int using (trim(productline) :: int )
-------------------------------------------------------------
+-----
 --------------EX. 02-------------------------------------------------
 --- EM LỠ ĐỔI TÊN BẢNG RỒI MỚI LÀM BÀI NÀY Ạ
 SELECT ORDERNUMBER, QUANTITYORDERED, 
@@ -74,10 +60,10 @@ PRICEEACH, ORDERLINENUMBER,
 SALES, ORDERDATE) IS NULL
 --------------EX. 03-------------------------------------------------
 alter table sales_dataset_rfm_prj
-add column CONTACTLASTNAME varchar(20)
+add column CONTACTLASTNAME varchar(250)
 
 alter table sales_dataset_rfm_prj
-add column CONTACTFIRSTNAME varchar(20)
+add column CONTACTFIRSTNAME varchar(250)
 
 UPDATE sales_dataset_rfm_prj
 SET CONTACTFIRSTNAME = SUBSTRING(CONTACTFULLNAME FROM 1 FOR (POSITION('-' IN CONTACTFULLNAME)-1)) 
@@ -144,22 +130,33 @@ AVG(QUANTITYORDERED) AS AVG,
 STDDEV(QUANTITYORDERED) AS SD
 FROM  sales_dataset_rfm_prj
 ),
-OUTLIER AS (
-SELECT QUANTITYORDER,
-(QUANTITYORDER-AVG)/SD AS Z-SCORE 
+OUTLInER AS (
+SELECT orderdate, QUANTITYORDER,
+(QUANTITYORDER-AVG)/SD AS Z_SCORE 
 FROM CTE
-WHERE ABS((QUANTITYORDER-AVG)/SD) > 3)
+WHERE ABS((QUANTITYORDER-AVG)/SD) > 2)
 )
 UPDATE sales_dataset_rfm_prj 
 SET QUANTITYORDER = (SELECT AVG(QUANTITYORDER) FROM sales_dataset_rfm_prj
-					WHERE QUANTITYORDER IN (SELECT QUANTITYORDER FROM OUTLIER) )
+					WHERE QUANTITYORDER IN (SELECT QUANTITYORDER FROM OUTLInER) )
 
-SELECT * FROM sales_dataset_rfm_prj
+DELETE FROM sales_dataset_rfm_prj
+WHERE QUANTITYORDERED IN(SELECT QUANTITYORDERED FROM twt_outliner)
 
 ----EX.06-------- 
 ALTER TABLE sales_dataset_rfm_prj
 RENAME TO SALES_DATASET_RFM_PRJ_CLEAN
 
+CREATE TABLE SALES_DATASET_RFM_PRJ_CLEAN AS
+SELECT *
+FROM sales_dataset_rfm_prj
+WHERE 
+    ORDERNUMBER IS NOT NULL AND
+    QUANTITYORDERED IS NOT NULL AND
+    PRICEEACH IS NOT NULL AND
+    ORDERLINENUMBER IS NOT NULL AND
+    SALES IS NOT NULL AND
+    ORDERDATE IS NOT NULL;
 
 
 
